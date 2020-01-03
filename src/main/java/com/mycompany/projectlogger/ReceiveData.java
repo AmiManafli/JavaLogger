@@ -45,7 +45,7 @@ public class ReceiveData implements Runnable {
             String stringPacket = builder.toString();
             
             System.out.println(stringPacket); 
-            System.out.println(stringPacket.compareTo("Identify")==0); 
+            System.out.println(stringPacket.compareTo("Identify") == 0); 
             if(stringPacket.compareTo("Identify")==0) {
                 application.setThreadState(Application.State.IDENTIFY);
             }
