@@ -5,6 +5,7 @@
  */
 package com.mycompany.projectlogger;
 
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -19,14 +20,48 @@ import javax.swing.JFileChooser;
  */
 public class Application extends javax.swing.JFrame {
     private FileReader fileReader = null;
-    
+    private ClientConnection connection;
+    private Thread receiveThread;
+    private Thread sendThread;
+    private State state = State.INITIAL;
+    public enum State {
+        INITIAL,
+        RECV_IDENTIFY,
+        IDENTIFY,
+        LOGGING_IN,
+        CONNECTED
+    }
     /**
      * Creates new form Application
      */
     public Application() {
         initComponents();
+        this.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                serverDisconnect();
+            }
+        });
+        connection = new ClientConnection("127.0.0.1", 1234);
     }
-
+    
+    public synchronized State getThreadState() {
+        return state;
+    }
+    
+    public synchronized void setThreadState(State state) {
+        this.state = state;
+        System.out.println("Changing to state: " + state);
+    }    
+    
+    private void serverDisconnect() {
+        try {
+            connection.disconnect();
+        } catch(IOException e) {
+            System.out.println("Failed to ServerDisconnect");
+        }
+    }
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -90,9 +125,19 @@ public class Application extends javax.swing.JFrame {
         connectionPanel.setMaximumSize(new java.awt.Dimension(32767, 55));
 
         connectButton.setText("Connect");
+        connectButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                connectButtonActionPerformed(evt);
+            }
+        });
         connectionPanel.add(connectButton);
 
         disconnectButton.setText("Disconnect");
+        disconnectButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                disconnectButtonActionPerformed(evt);
+            }
+        });
         connectionPanel.add(disconnectButton);
 
         getContentPane().add(connectionPanel);
@@ -111,6 +156,11 @@ public class Application extends javax.swing.JFrame {
         exitPanel.setLayout(new javax.swing.BoxLayout(exitPanel, javax.swing.BoxLayout.LINE_AXIS));
 
         exitButton.setText("Exit");
+        exitButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                exitButtonActionPerformed(evt);
+            }
+        });
         exitPanel.add(exitButton);
 
         getContentPane().add(exitPanel);
@@ -153,6 +203,36 @@ public class Application extends javax.swing.JFrame {
            }
        }
     }//GEN-LAST:event_closeButtonActionPerformed
+
+    private void exitButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_exitButtonActionPerformed
+        serverDisconnect();
+        System.exit(0);
+    }//GEN-LAST:event_exitButtonActionPerformed
+    
+    private void connectButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectButtonActionPerformed
+        try {
+            connection.connect();
+            appendToLog("Connected to the server");
+            receiveThread = new Thread(new ReceiveData(this, connection.getInputStream()));
+            sendThread = new Thread(new SendData(this, connection.getOutputStream()));
+            receiveThread.start();
+            sendThread.start();
+            setThreadState(State.RECV_IDENTIFY);
+            
+        } catch(IOException e) {
+            appendToLog("ERROR: Connection to server failed");
+        }
+    }//GEN-LAST:event_connectButtonActionPerformed
+
+    private void disconnectButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_disconnectButtonActionPerformed
+        try {
+            connection.disconnect();
+            appendToLog("Disconnected from the server");
+        
+        } catch (IOException ex) {
+            appendToLog("ERROR: Disconnection from the server failed");
+        }
+    }//GEN-LAST:event_disconnectButtonActionPerformed
 
     /**
      * @param args the command line arguments
