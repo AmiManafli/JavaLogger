@@ -65,6 +65,8 @@ public class ReceiveData implements Runnable {
                 application.connectButton.setEnabled(false);
                 application.startButton.setEnabled(true);
                 application.disconnectButton.setEnabled(true);
+                application.breakButton.setEnabled(false);
+                application.closeButton.setEnabled(false);
 
             } else {
                 application.appendToLog("Failed to log in", false);
@@ -129,7 +131,8 @@ public class ReceiveData implements Runnable {
             }
             application.appendToLog("");
         } catch(IOException e) {
-            Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, e);
+          
+  //          Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, e);
         } 
     }
 
@@ -147,6 +150,7 @@ public class ReceiveData implements Runnable {
                     break;
                 case RECEIVE_MEASUREMENTS:
                     readMeasurementPacket();
+                    application.setThreadState(Application.State.READY);
                     break;
                 default:
                     break;

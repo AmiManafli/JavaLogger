@@ -36,6 +36,12 @@ public class SendData implements Runnable {
                 case START:
                     sendStartPacket();
                     break;
+                case READY:
+                    sendReadyPacket();
+                    break;
+                case BREAK:
+                    sendBreakPacket();
+                    break;
                 default:
                     break;
             }
@@ -56,11 +62,13 @@ public class SendData implements Runnable {
         }
     }
     
-        private void sendStartPacket() {
+    private void sendStartPacket() {
         try {
             PacketBuffer sendBuffer = new PacketBuffer("Start");
             send(sendBuffer);
             application.setThreadState(Application.State.RECEIVE_MEASUREMENTS);
+            application.startButton.setEnabled(false);
+            application.breakButton.setEnabled(true);
         } catch (IOException ex) {
             Logger.getLogger(SendData.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -69,5 +77,27 @@ public class SendData implements Runnable {
     public void stop() {
         exit = true;
     } 
+
+    private void sendReadyPacket() {
+        try {
+            PacketBuffer sendBuffer = new PacketBuffer("Ready");
+            send(sendBuffer);
+            application.setThreadState(Application.State.RECEIVE_MEASUREMENTS);
+        } catch (IOException ex) {
+            Logger.getLogger(SendData.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    private void sendBreakPacket() {
+        try {
+            PacketBuffer sendBuffer = new PacketBuffer("Break");
+            send(sendBuffer);
+            application.setThreadState(Application.State.CONNECTED);
+            application.startButton.setEnabled(true);
+            application.breakButton.setEnabled(false);
+        } catch (IOException ex) {
+            Logger.getLogger(SendData.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
     
 }

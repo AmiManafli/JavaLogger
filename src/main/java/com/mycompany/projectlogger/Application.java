@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
+import javax.swing.text.DefaultCaret;
 
 /**
  *
@@ -55,6 +56,8 @@ public class Application extends javax.swing.JFrame {
             }
         });
         connection = new ClientConnection("127.0.0.1", 1234);
+        DefaultCaret caret = (DefaultCaret)logTextArea.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
     }
     
     public synchronized State getThreadState() {
@@ -68,15 +71,21 @@ public class Application extends javax.swing.JFrame {
     
     private void serverDisconnect() {
         try {
+            if(receiveData != null) {
+                receiveData.stop();
+            }
+            if(sendData != null) {
+                sendData.stop();
+            }
             connection.disconnect();
-            receiveData.stop();
-            sendData.stop();
             connectButton.setEnabled(true);
             disconnectButton.setEnabled(false);
             startButton.setEnabled(false);
             breakButton.setEnabled(false);
+            closeButton.setEnabled(true);            
+            
         } catch(IOException e) {
-            System.out.println("Failed to ServerDisconnect");
+            appendToLog("Disconnect failed", false);
         }
     }
     
@@ -142,6 +151,7 @@ public class Application extends javax.swing.JFrame {
         connectionPanel.setMaximumSize(new java.awt.Dimension(32767, 55));
 
         connectButton.setText("Connect");
+        connectButton.setEnabled(false);
         connectButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 connectButtonActionPerformed(evt);
@@ -174,6 +184,11 @@ public class Application extends javax.swing.JFrame {
 
         breakButton.setText("Break");
         breakButton.setEnabled(false);
+        breakButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                breakButtonActionPerformed(evt);
+            }
+        });
         measurementPanel.add(breakButton);
 
         getContentPane().add(measurementPanel);
@@ -224,12 +239,13 @@ public class Application extends javax.swing.JFrame {
                 fileWriter = Files.newBufferedWriter(chooser.getSelectedFile().toPath());
                 appendToLog("Opened file: " + chooser.getSelectedFile().getName(), false);
                 closeButton.setEnabled(true);
+                connectButton.setEnabled(true);
                 openButton.setEnabled(false);
 
             } catch (FileNotFoundException e) {
-                System.out.println("File not found!");
+                appendToLog("File not found", false);
             } catch (IOException ex) {
-                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+                appendToLog("Error opening the file", false);
             }        
         }
     }//GEN-LAST:event_openButtonActionPerformed
@@ -241,7 +257,9 @@ public class Application extends javax.swing.JFrame {
                fileWriter = null;
                closeButton.setEnabled(false);
                openButton.setEnabled(true);
+               connectButton.setEnabled(false);
                appendToLog("File closed.", false);
+               
            } catch (IOException ex) {
                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
            }
@@ -265,7 +283,7 @@ public class Application extends javax.swing.JFrame {
             setThreadState(State.RECV_IDENTIFY);
             
         } catch(IOException e) {
-            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, e);
+            appendToLog("Connection refused", false);
         }
     }//GEN-LAST:event_connectButtonActionPerformed
 
@@ -276,6 +294,10 @@ public class Application extends javax.swing.JFrame {
     private void startButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_startButtonActionPerformed
         setThreadState(State.START);
     }//GEN-LAST:event_startButtonActionPerformed
+
+    private void breakButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_breakButtonActionPerformed
+        setThreadState(State.BREAK);
+    }//GEN-LAST:event_breakButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -314,7 +336,7 @@ public class Application extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     javax.swing.JButton breakButton;
-    private javax.swing.JButton closeButton;
+    javax.swing.JButton closeButton;
     javax.swing.JButton connectButton;
     private javax.swing.JPanel connectionPanel;
     javax.swing.JButton disconnectButton;
