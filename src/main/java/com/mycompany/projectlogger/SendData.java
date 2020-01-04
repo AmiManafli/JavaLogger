@@ -40,7 +40,6 @@ public class SendData implements Runnable {
                     break;
             }
         }
-        application.appendToLog("SendThread stopping");
     }
 
     private void send(PacketBuffer buffer) throws IOException {

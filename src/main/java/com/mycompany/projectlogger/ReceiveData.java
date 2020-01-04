@@ -11,6 +11,8 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,13 +61,13 @@ public class ReceiveData implements Runnable {
             
             if(messageRcv.compareTo("Accepted")==0) {
                 application.setThreadState(Application.State.CONNECTED);
-                application.appendToLog("Connected to the server");
+                application.appendToLog("Connected to the server", false);
                 application.connectButton.setEnabled(false);
                 application.startButton.setEnabled(true);
                 application.disconnectButton.setEnabled(true);
 
             } else {
-                application.appendToLog("Failed to log in...");
+                application.appendToLog("Failed to log in", false);
                 application.setThreadState(Application.State.INITIAL);
                 application.connectButton.setEnabled(true);
                 application.startButton.setEnabled(false);
@@ -73,47 +75,61 @@ public class ReceiveData implements Runnable {
            
             }
         } catch(IOException e) {
-            application.appendToLog("ERROR: Failed to receive Accepted!");
+            Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, e);
         } 
     }
     
-    private boolean isValueInt(String pointName) {
-        return (
-            pointName.contains("quantity") || 
-            pointName.contains("volume") ||
-            pointName.contains("level") || 
-            pointName.contains("concentration")
-        ); 
+    private String getValue(String pointName, PacketBuffer buffer) {
+        if (pointName.contains("quantity")) {
+            return String.format("%d kg", buffer.getInt());            
+        } else if (pointName.contains("volume")) {
+            return String.format("%d L", buffer.getInt());      
+        } else if (pointName.contains("level")) {
+            return String.format("%d %%", buffer.getInt()); 
+        } else if (pointName.contains("concentration")) {
+            return String.format("%d %%", buffer.getInt()); 
+        } else if (pointName.contains("temperature")) {
+            return String.format("%.1f °C", buffer.getDouble()); 
+        } else if (pointName.contains("pressure")) {
+            return String.format("%.1f atm", buffer.getDouble()); 
+        } else if (pointName.contains("pH")) {
+            return String.format("%.1f", buffer.getDouble()); 
+        } else if (pointName.contains("viscosity")) {
+            return String.format("%.2f cSt", buffer.getDouble()); 
+        } else if (pointName.contains("conductivity")) {
+            return String.format("%.2f S/m", buffer.getDouble()); 
+        } else if (pointName.contains("speed")) {
+            return String.format("%.3f m³/s", buffer.getDouble()); 
+        } else if (pointName.contains("turbidity")) {
+            return String.format("%f NTU", buffer.getDouble()); 
+        } else { 
+            throw new RuntimeException("Couldn't parse the point name: " + pointName);
+        }
     }
+    
     
     private void readMeasurementPacket() {
         try {
             PacketBuffer buffer = readPacket();
+            SimpleDateFormat formatter = new SimpleDateFormat("'Measurement results at' yyyy-MM-dd HH:mm:ss");
+            application.appendToLog(formatter.format(new Date(System.currentTimeMillis())));
             int numChannels = buffer.getInt();
-            application.appendToLog("Number of channels: " + numChannels);
             
             for(int channel = 0; channel < numChannels; channel++) {
                 int numPoints = buffer.getInt();
-                application.appendToLog("Number of points: " + numPoints); 
                 String channelName = buffer.getString();
-                application.appendToLog("Name of the channel: " + channelName); 
+                
+                application.appendToLog(String.format("%s:", channelName)); 
                 
                 for(int point = 0; point < numPoints; point++) {
                     String pointName = buffer.getString();
-                    application.appendToLog("Name of the point: " + pointName); 
-                    if(isValueInt(pointName)) {
-                        int value = buffer.getInt();
-                        application.appendToLog("Int Measurement: " + value);
-                    } else {
-                        double value = buffer.getDouble();
-                        application.appendToLog("Double Measurement: " + value); 
-                    } 
-                }
+                    String value = getValue(pointName, buffer);
+                    application.appendToLog(String.format("%s: %s", pointName, value));
+                 }
             }
-            
-            
+            application.appendToLog("");
         } catch(IOException e) {
-            application.appendToLog("ERROR: Failed to receive Identify!");
+            Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, e);
         } 
     }
 
@@ -136,15 +152,9 @@ public class ReceiveData implements Runnable {
                     break;
             }
         }
-        application.appendToLog("ReceiveThread stopping");
     }
 
     public void stop() {
         exit = true;
     }
-
-
-    
-    
-    
 }

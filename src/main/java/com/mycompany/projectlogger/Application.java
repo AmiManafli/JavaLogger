@@ -6,9 +6,12 @@
 package com.mycompany.projectlogger;
 
 import java.awt.event.WindowEvent;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.nio.file.Files;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Level;
@@ -20,7 +23,7 @@ import javax.swing.JFileChooser;
  * @author amina
  */
 public class Application extends javax.swing.JFrame {
-    private FileReader fileReader = null;
+    private BufferedWriter fileWriter = null;
     private ClientConnection connection;
     private Thread receiveThread;
     private Thread sendThread;
@@ -190,36 +193,55 @@ public class Application extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    public void appendToLog(String text) {
+    public void appendToLog(String text, boolean writeToFile) {
         String oldText = logTextArea.getText();
-        logTextArea.setText(oldText + "\n" + text);
-     
+        String newText = text + System.lineSeparator();
+        
+        if(!writeToFile) {
+            newText = "DEBUG: " + newText;
+        }
+        logTextArea.setText(oldText + newText);
+        
+        if(writeToFile && fileWriter != null) {
+            try{
+                fileWriter.append(newText);
+                fileWriter.flush();
+            } catch(IOException ex) {
+                System.out.println("ERROR: Failed to write to the log file");
+            }
+        }
     }
     
+    public void appendToLog(String text) {
+        appendToLog(text, true);           
+    }
+  
     private void openButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_openButtonActionPerformed
         JFileChooser chooser = new JFileChooser();
         int choice = chooser.showOpenDialog(null);
         if (choice == JFileChooser.APPROVE_OPTION) {
             try {
-                fileReader = new FileReader(chooser.getSelectedFile()); 
-                appendToLog("Choice: " + chooser.getSelectedFile().getName());
+                fileWriter = Files.newBufferedWriter(chooser.getSelectedFile().toPath());
+                appendToLog("Opened file: " + chooser.getSelectedFile().getName(), false);
                 closeButton.setEnabled(true);
                 openButton.setEnabled(false);
 
             } catch (FileNotFoundException e) {
                 System.out.println("File not found!");
-            }        }
-      //  appendToLog("Choice:" + choice);
+            } catch (IOException ex) {
+                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+            }        
+        }
     }//GEN-LAST:event_openButtonActionPerformed
 
     private void closeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_closeButtonActionPerformed
-       if (fileReader != null) {
+       if (fileWriter != null) {
            try {
-               fileReader.close();
-               fileReader = null;
+               fileWriter.close();
+               fileWriter = null;
                closeButton.setEnabled(false);
                openButton.setEnabled(true);
-               appendToLog("File closed.");
+               appendToLog("File closed.", false);
            } catch (IOException ex) {
                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
            }
@@ -243,7 +265,7 @@ public class Application extends javax.swing.JFrame {
             setThreadState(State.RECV_IDENTIFY);
             
         } catch(IOException e) {
-            appendToLog("ERROR: Connection to server failed");
+            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, e);
         }
     }//GEN-LAST:event_connectButtonActionPerformed
 
