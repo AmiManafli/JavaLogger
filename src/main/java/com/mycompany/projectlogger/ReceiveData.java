@@ -41,43 +41,35 @@ public class ReceiveData implements Runnable {
         return packetBuffer;
     }    
 
-    public void readIdentifyPacket() {
-        try {
-            PacketBuffer packetBuffer = readPacket();
-            String messageRcv = packetBuffer.getUnicodeString();
-            
-            if(messageRcv.compareTo("Identify")==0) {
-                application.setThreadState(Application.State.IDENTIFY);
-            }
-        } catch(IOException e) {
-            application.appendToLog("ERROR: Failed to receive Identify!");
-        } 
+    public void readIdentifyPacket() throws IOException {
+        PacketBuffer packetBuffer = readPacket();
+        String messageRcv = packetBuffer.getUnicodeString();
+
+        if (messageRcv.compareTo("Identify") == 0) {
+            application.setThreadState(Application.State.IDENTIFY);
+        }
     }
     
-    private void readAcceptedPacket() {
-        try {
-            PacketBuffer packetBuffer = readPacket();
-            String messageRcv = packetBuffer.getUnicodeString();
-            
-            if(messageRcv.compareTo("Accepted")==0) {
-                application.setThreadState(Application.State.CONNECTED);
-                application.appendToLog("Connected to the server", false);
-                application.connectButton.setEnabled(false);
-                application.startButton.setEnabled(true);
-                application.disconnectButton.setEnabled(true);
-                application.breakButton.setEnabled(false);
-                application.closeButton.setEnabled(false);
+    private void readAcceptedPacket() throws IOException {
+        PacketBuffer packetBuffer = readPacket();
+        String messageRcv = packetBuffer.getUnicodeString();
 
-            } else {
-                application.appendToLog("Failed to log in", false);
-                application.setThreadState(Application.State.INITIAL);
-                application.connectButton.setEnabled(true);
-                application.startButton.setEnabled(false);
-                application.disconnectButton.setEnabled(false);
-           
-            }
-        } catch(IOException e) {
-            Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, e);
+        if (messageRcv.compareTo("Accepted") == 0) {
+            application.setThreadState(Application.State.CONNECTED);
+            application.appendToLog("Connected to the server", false);
+            application.connectButton.setEnabled(false);
+            application.startButton.setEnabled(true);
+            application.disconnectButton.setEnabled(true);
+            application.breakButton.setEnabled(false);
+            application.closeButton.setEnabled(false);
+
+        } else {
+            application.appendToLog("Failed to log in", false);
+            application.setThreadState(Application.State.INITIAL);
+            application.connectButton.setEnabled(true);
+            application.startButton.setEnabled(false);
+            application.disconnectButton.setEnabled(false);
+
         } 
     }
     
@@ -110,50 +102,51 @@ public class ReceiveData implements Runnable {
     }
     
     
-    private void readMeasurementPacket() {
-        try {
-            PacketBuffer buffer = readPacket();
-            SimpleDateFormat formatter = new SimpleDateFormat("'Measurement results at' yyyy-MM-dd HH:mm:ss");
-            application.appendToLog(formatter.format(new Date(System.currentTimeMillis())));
-            int numChannels = buffer.getInt();
-            
-            for(int channel = 0; channel < numChannels; channel++) {
-                int numPoints = buffer.getInt();
-                String channelName = buffer.getString();
-                
-                application.appendToLog(String.format("%s:", channelName)); 
-                
-                for(int point = 0; point < numPoints; point++) {
-                    String pointName = buffer.getString();
-                    String value = getValue(pointName, buffer);
-                    application.appendToLog(String.format("%s: %s", pointName, value));
-                 }
+    private void readMeasurementPacket() throws IOException {
+        PacketBuffer buffer = readPacket();
+        SimpleDateFormat formatter = new SimpleDateFormat("'Measurement results at' yyyy-MM-dd HH:mm:ss");
+        application.appendToLog(formatter.format(new Date(System.currentTimeMillis())));
+        int numChannels = buffer.getInt();
+
+        for (int channel = 0; channel < numChannels; channel++) {
+            int numPoints = buffer.getInt();
+            String channelName = buffer.getString();
+
+            application.appendToLog(String.format("%s:", channelName));
+
+            for (int point = 0; point < numPoints; point++) {
+                String pointName = buffer.getString();
+                String value = getValue(pointName, buffer);
+                application.appendToLog(String.format("%s: %s", pointName, value));
             }
-            application.appendToLog("");
-        } catch(IOException e) {
-          
-  //          Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, e);
-        } 
+        }
+        application.appendToLog("");
     }
 
 
     @Override
     public void run() {
         while(!exit){
-            Application.State state = application.getThreadState();
-            switch(state) {
-                case RECV_IDENTIFY:
-                    readIdentifyPacket();
-                    break;
-                case LOGGING_IN: 
-                    readAcceptedPacket();
-                    break;
-                case RECEIVE_MEASUREMENTS:
-                    readMeasurementPacket();
-                    application.setThreadState(Application.State.READY);
-                    break;
-                default:
-                    break;
+            try {
+                Application.State state = application.getThreadState();
+                switch(state) {
+                    case RECV_IDENTIFY:
+                        readIdentifyPacket();
+                        break;
+                    case LOGGING_IN:
+                        readAcceptedPacket();
+                        break;
+                    case RECEIVE_MEASUREMENTS:
+                        readMeasurementPacket();
+                        application.setThreadState(Application.State.READY);
+                        break;
+                    default:
+                        break;
+                }
+            } catch (IOException ex) {
+            //    Logger.getLogger(ReceiveData.class.getName()).log(Level.SEVERE, null, ex);
+                exit = true;
+                application.serverDisconnect();
             }
         }
     }

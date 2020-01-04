@@ -69,7 +69,7 @@ public class Application extends javax.swing.JFrame {
         System.out.println("Changing to state: " + state);
     }    
     
-    private void serverDisconnect() {
+    public void serverDisconnect() {
         try {
             if(receiveData != null) {
                 receiveData.stop();
