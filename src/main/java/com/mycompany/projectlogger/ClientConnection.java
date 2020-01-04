@@ -43,6 +43,8 @@ public class ClientConnection {
     }
     
     public void disconnect() throws IOException {
-        socket.close();
+        if(socket != null && !socket.isClosed()) {
+            socket.close();
+        }
     }
 }

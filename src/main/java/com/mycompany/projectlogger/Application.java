@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
@@ -23,14 +24,22 @@ public class Application extends javax.swing.JFrame {
     private ClientConnection connection;
     private Thread receiveThread;
     private Thread sendThread;
+    private ReceiveData receiveData;
+    private SendData sendData;
+    
     private State state = State.INITIAL;
     public enum State {
         INITIAL,
         RECV_IDENTIFY,
         IDENTIFY,
         LOGGING_IN,
-        CONNECTED
+        CONNECTED,
+        START,
+        RECEIVE_MEASUREMENTS,
+        READY,
+        BREAK
     }
+    
     /**
      * Creates new form Application
      */
@@ -57,6 +66,12 @@ public class Application extends javax.swing.JFrame {
     private void serverDisconnect() {
         try {
             connection.disconnect();
+            receiveData.stop();
+            sendData.stop();
+            connectButton.setEnabled(true);
+            disconnectButton.setEnabled(false);
+            startButton.setEnabled(false);
+            breakButton.setEnabled(false);
         } catch(IOException e) {
             System.out.println("Failed to ServerDisconnect");
         }
@@ -99,7 +114,6 @@ public class Application extends javax.swing.JFrame {
 
         getContentPane().add(logScrollPanel);
 
-        logFilePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Log file"));
         logFilePanel.setMaximumSize(new java.awt.Dimension(32767, 55));
 
         openButton.setText("Open");
@@ -133,6 +147,7 @@ public class Application extends javax.swing.JFrame {
         connectionPanel.add(connectButton);
 
         disconnectButton.setText("Disconnect");
+        disconnectButton.setEnabled(false);
         disconnectButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 disconnectButtonActionPerformed(evt);
@@ -146,9 +161,16 @@ public class Application extends javax.swing.JFrame {
         measurementPanel.setMaximumSize(new java.awt.Dimension(32767, 55));
 
         startButton.setText("Start");
+        startButton.setEnabled(false);
+        startButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                startButtonActionPerformed(evt);
+            }
+        });
         measurementPanel.add(startButton);
 
         breakButton.setText("Break");
+        breakButton.setEnabled(false);
         measurementPanel.add(breakButton);
 
         getContentPane().add(measurementPanel);
@@ -212,9 +234,10 @@ public class Application extends javax.swing.JFrame {
     private void connectButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_connectButtonActionPerformed
         try {
             connection.connect();
-            appendToLog("Connected to the server");
-            receiveThread = new Thread(new ReceiveData(this, connection.getInputStream()));
-            sendThread = new Thread(new SendData(this, connection.getOutputStream()));
+            receiveData = new ReceiveData(this, connection.getInputStream());
+            receiveThread = new Thread(receiveData);
+            sendData = new SendData(this, connection.getOutputStream());
+            sendThread = new Thread(sendData);
             receiveThread.start();
             sendThread.start();
             setThreadState(State.RECV_IDENTIFY);
@@ -225,14 +248,12 @@ public class Application extends javax.swing.JFrame {
     }//GEN-LAST:event_connectButtonActionPerformed
 
     private void disconnectButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_disconnectButtonActionPerformed
-        try {
-            connection.disconnect();
-            appendToLog("Disconnected from the server");
-        
-        } catch (IOException ex) {
-            appendToLog("ERROR: Disconnection from the server failed");
-        }
+        serverDisconnect();        
     }//GEN-LAST:event_disconnectButtonActionPerformed
+
+    private void startButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_startButtonActionPerformed
+        setThreadState(State.START);
+    }//GEN-LAST:event_startButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -270,11 +291,11 @@ public class Application extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton breakButton;
+    javax.swing.JButton breakButton;
     private javax.swing.JButton closeButton;
-    private javax.swing.JButton connectButton;
+    javax.swing.JButton connectButton;
     private javax.swing.JPanel connectionPanel;
-    private javax.swing.JButton disconnectButton;
+    javax.swing.JButton disconnectButton;
     private javax.swing.JButton exitButton;
     private javax.swing.JPanel exitPanel;
     private javax.swing.JPanel logFilePanel;
@@ -282,6 +303,6 @@ public class Application extends javax.swing.JFrame {
     private javax.swing.JTextArea logTextArea;
     private javax.swing.JPanel measurementPanel;
     private javax.swing.JButton openButton;
-    private javax.swing.JButton startButton;
+    javax.swing.JButton startButton;
     // End of variables declaration//GEN-END:variables
 }
